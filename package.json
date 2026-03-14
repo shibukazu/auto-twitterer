@@ -1,0 +1,34 @@
+{
+  "name": "auto-twitterer",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "temporal:up": "docker compose up -d",
+    "temporal:down": "docker compose down",
+    "temporal:namespace:list": "temporal operator namespace list --address ${TEMPORAL_ADDRESS:-localhost:7233}",
+    "temporal:namespace:create": "temporal operator namespace create --address ${TEMPORAL_ADDRESS:-localhost:7233} --namespace ${TEMPORAL_NAMESPACE:-auto-twitterer}",
+    "worker:launchctl:deploy": "bun run scripts/deploy.ts",
+    "worker:launchctl:bootout": "launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.auto-twitterer.worker.plist || true",
+    "worker:dev": "bun --hot src/temporal/worker.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@mendable/firecrawl-js": "^4.15.4",
+    "@steipete/bird": "^0.8.0",
+    "@temporalio/activity": "^1.15.0",
+    "@temporalio/client": "^1.15.0",
+    "@temporalio/worker": "^1.15.0",
+    "@temporalio/workflow": "^1.15.0",
+    "twitter-api-v2": "^1.29.0"
+  },
+  "trustedDependencies": [
+    "@swc/core",
+    "protobufjs"
+  ]
+}
