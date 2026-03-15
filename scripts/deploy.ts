@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { installConsoleOverrides } from "../src/utils/logger";
 
 const LABEL = "com.auto-twitterer.worker";
 
@@ -25,6 +26,8 @@ function runLaunchctl(args: string[], allowFailure = false): void {
 }
 
 async function main(): Promise<void> {
+  installConsoleOverrides();
+
   const uid = process.getuid?.();
   if (!uid) {
     throw new Error("macOS launchd deployment requires process.getuid()");
@@ -62,13 +65,15 @@ async function main(): Promise<void> {
   runLaunchctl(["bootstrap", `gui/${uid}`, plistPath]);
   runLaunchctl(["kickstart", "-k", domainTarget]);
 
-  console.log(`[deploy] Installed ${plistPath}`);
-  console.log(
-    `[deploy] Worker restarted with TEMPORAL_ADDRESS=${temporalAddress}, TEMPORAL_NAMESPACE=${temporalNamespace}, TEMPORAL_TASK_QUEUE=${temporalTaskQueue}`
-  );
+  console.info("deploy installed", { plistPath });
+  console.info("deploy restart worker", {
+    temporalAddress,
+    temporalNamespace,
+    temporalTaskQueue,
+  });
 }
 
 main().catch((error) => {
-  console.error("[deploy] failed:", error instanceof Error ? error.message : error);
+  console.error("deploy failed", { message: error instanceof Error ? error.message : error });
   process.exit(1);
 });

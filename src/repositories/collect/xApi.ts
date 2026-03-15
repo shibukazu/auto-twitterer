@@ -87,7 +87,7 @@ export function createXApi(auth?: XApiAuth): AccountCollectRepository {
               ),
           });
         } catch (err) {
-          console.warn(`[fetchAccountPosts:x-api] Skipping @${username}:`, err);
+          console.warn("xapi fetchAccountPosts skipped", { username }, err);
           results.push({ account: username, posts: [] });
         }
       }
@@ -129,7 +129,7 @@ export function createXApi(auth?: XApiAuth): AccountCollectRepository {
               }),
           });
         } catch (err) {
-          console.warn(`[searchX:x-api] Skipping query "${query}":`, err);
+          console.warn("xapi searchPosts skipped", { query }, err);
           results.push({ query, posts: [] });
         }
       }

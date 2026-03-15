@@ -40,7 +40,7 @@ async function createClient(auth?: BirdAuth): Promise<TwitterClient> {
   });
 
   for (const w of warnings) {
-    console.warn("[bird]", w);
+    console.warn("bird resolveCredentials warning", { warning: w });
   }
 
   if (!cookies.authToken) {
@@ -95,7 +95,7 @@ export function createBird(auth?: BirdAuth): AccountCollectRepository {
                   `詳細: ${errMsg.slice(0, 200)}`
               );
             }
-            console.warn(`[fetchAccountPosts] Could not resolve @${username}: ${errMsg}`);
+            console.warn("bird fetchAccountPosts resolve failed", { username, error: errMsg });
             results.push({ account: username, posts: [] });
             continue;
           }
@@ -104,7 +104,7 @@ export function createBird(auth?: BirdAuth): AccountCollectRepository {
           await sleep(SLEEP_AFTER_TWEETS_BASE, SLEEP_AFTER_TWEETS_JITTER);
 
           if (!result.success) {
-            console.warn(`[fetchAccountPosts] Failed to fetch tweets for @${username}: ${result.error}`);
+            console.warn("bird fetchAccountPosts fetch failed", { username, error: result.error });
             results.push({ account: username, posts: [] });
             continue;
           }
@@ -119,7 +119,7 @@ export function createBird(auth?: BirdAuth): AccountCollectRepository {
               ),
           });
         } catch (err) {
-          console.warn(`[fetchAccountPosts] Skipping @${username}:`, err);
+          console.warn("bird fetchAccountPosts skipped", { username }, err);
           results.push({ account: username, posts: [] });
         }
       }
@@ -140,7 +140,7 @@ export function createBird(auth?: BirdAuth): AccountCollectRepository {
         try {
           const result = await client.search(query, MAX_RESULTS_PER_QUERY);
           if (!result.success) {
-            console.warn(`[searchX:bird] Search failed for "${query}": ${result.error}`);
+            console.warn("bird searchPosts failed", { query, error: result.error });
             results.push({ query, posts: [] });
             continue;
           }
@@ -158,7 +158,7 @@ export function createBird(auth?: BirdAuth): AccountCollectRepository {
               ),
           });
         } catch (err) {
-          console.warn(`[searchX:bird] Skipping query "${query}":`, err);
+          console.warn("bird searchPosts skipped", { query }, err);
           results.push({ query, posts: [] });
         }
       }

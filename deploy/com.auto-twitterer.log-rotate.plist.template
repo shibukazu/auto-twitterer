@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__SCRIPT_PATH__</string>
+    <string>__PROJECT_ROOT__</string>
+    <string>__MAX_SIZE_MB__</string>
+    <string>__KEEP_COUNT__</string>
+    <string>worker.log</string>
+    <string>worker.error.log</string>
+    <string>alloy.log</string>
+    <string>alloy.err.log</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>__START_INTERVAL__</integer>
+  <key>StandardOutPath</key>
+  <string>__PROJECT_ROOT__/logs/log-rotate.log</string>
+  <key>StandardErrorPath</key>
+  <string>__PROJECT_ROOT__/logs/log-rotate.err.log</string>
+</dict>
+</plist>

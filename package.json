@@ -9,7 +9,8 @@
     "temporal:namespace:create": "temporal operator namespace create --address ${TEMPORAL_ADDRESS:-localhost:7233} --namespace ${TEMPORAL_NAMESPACE:-auto-twitterer}",
     "worker:launchctl:deploy": "bun run scripts/deploy.ts",
     "worker:launchctl:bootout": "launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.auto-twitterer.worker.plist || true",
-    "worker:dev": "bun --hot src/temporal/worker.ts"
+    "worker:dev": "bun --hot src/temporal/worker.ts",
+    "alloy:deploy": "./bin/deploy-alloy.sh"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -25,6 +26,7 @@
     "@temporalio/client": "^1.15.0",
     "@temporalio/worker": "^1.15.0",
     "@temporalio/workflow": "^1.15.0",
+    "pino": "^9.6.0",
     "twitter-api-v2": "^1.29.0"
   },
   "trustedDependencies": [

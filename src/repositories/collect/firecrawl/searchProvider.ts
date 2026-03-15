@@ -84,7 +84,7 @@ export function createFirecrawlSearchProvider(
               .filter((post): post is Post => post !== null),
           });
         } catch (err) {
-          console.warn(`[firecrawlSearchProvider] search failed "${query}":`, err);
+          console.warn("firecrawl search failed", { query, source: "searchPosts" }, err);
           results.push({ query, posts: [] });
         }
       }
@@ -113,7 +113,7 @@ export function createFirecrawlSearchProvider(
               .filter((candidate): candidate is SourceCandidate => candidate !== null)
           );
         } catch (err) {
-          console.warn(`[firecrawlSearchProvider] candidate search failed "${query}":`, err);
+          console.warn("firecrawl candidate search failed", { query, source: "searchCandidates" }, err);
         }
       }
 
@@ -141,7 +141,7 @@ export function createFirecrawlSearchProvider(
             links.push(link);
           }
         } catch (err) {
-          console.warn(`[firecrawlSearchProvider] link search failed "${query}":`, err);
+          console.warn("firecrawl link search failed", { query, source: "searchLinks" }, err);
         }
       }
 

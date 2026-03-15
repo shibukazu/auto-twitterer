@@ -28,7 +28,7 @@ export async function verifySources(
 
   const jsonMatch = textBlock.text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    console.warn("[verifySources] JSON が見つかりませんでした。ソースなしで続行します。");
+    console.warn("verifySources json not found");
     return [];
   }
 

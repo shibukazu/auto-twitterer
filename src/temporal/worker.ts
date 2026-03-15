@@ -1,6 +1,7 @@
 import { Worker } from "@temporalio/worker";
 import * as activities from "./activities";
 import { createNativeConnection } from "./connection";
+import { installConsoleOverrides } from "../utils/logger";
 
 let fatalHandled = false;
 
@@ -24,7 +25,7 @@ async function notifyWorkerFatal(label: string, err: unknown): Promise<void> {
   fatalHandled = true;
 
   const message = formatError(err).slice(0, 1500);
-  console.error(`[worker] ${label}:`, message);
+  console.error("worker fatal", { label, message });
 }
 
 function registerFatalHandlers(): void {
@@ -43,6 +44,7 @@ async function main() {
   const taskQueue = getTaskQueue();
   const namespace = getNamespace();
   registerFatalHandlers();
+  installConsoleOverrides();
   const connection = await createNativeConnection();
   try {
     const worker = await Worker.create({
@@ -53,7 +55,11 @@ async function main() {
       activities,
     });
 
-    console.log(`[worker] namespace "${namespace}" / task queue "${taskQueue}" で待機中...`);
+    console.info("worker started", {
+      namespace,
+      taskQueue,
+      command: "waiting",
+    });
     await worker.run();
   } catch (err) {
     await notifyWorkerFatal("実行失敗", err);
@@ -65,7 +71,7 @@ async function main() {
 
 main().catch((err) => {
   if (!fatalHandled) {
-    console.error("[worker] 起動失敗:", err instanceof Error ? err.message : err);
+    console.error("worker startup failed", { message: err instanceof Error ? err.message : String(err) });
   }
   process.exit(1);
 });

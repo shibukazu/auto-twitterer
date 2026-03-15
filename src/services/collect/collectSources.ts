@@ -63,7 +63,7 @@ export async function collectSourceCandidates(
     [WebCollectMethod, string[] | undefined]
   >) {
     if (!queriesWithoutUrls || queriesWithoutUrls.length === 0) continue;
-    console.log(`    ${method} 補完: ${queriesWithoutUrls.join(", ")}`);
+    console.info("collect source candidate補完", { method, queries: queriesWithoutUrls });
     const repository = repositories[method];
     if (repository) {
       const searched = await repository.searchCandidates(queriesWithoutUrls);

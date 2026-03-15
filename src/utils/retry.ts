@@ -26,9 +26,11 @@ export async function withRetry<T>(
       if (!isOverloaded || attempt === maxAttempts) throw err;
 
       const waitMs = baseDelayMs * 2 ** (attempt - 1);
-      console.warn(
-        `    [retry] API 過負荷 (attempt ${attempt}/${maxAttempts})、${waitMs / 1000}s 後にリトライ...`
-      );
+      console.warn("retry waiting for overload", {
+        attempt,
+        maxAttempts,
+        waitMs,
+      });
       await Bun.sleep(waitMs);
     }
   }

@@ -130,7 +130,10 @@ export async function saveCollected(data: CollectedData): Promise<void> {
     entry.collected = data;
     db.workflowCache[_cacheKey] = entry;
   });
-  console.log(`    [cache] collected 保存: .cache/db.json workflowCache.${_cacheKey}`);
+  console.info("cache.save.collected", {
+    scope: "workflowCache",
+    key: _cacheKey,
+  });
 }
 
 export async function loadCollected(): Promise<CollectedData> {
@@ -148,7 +151,11 @@ export async function saveSources(data: SourceLink[]): Promise<void> {
     entry.sources = data;
     db.workflowCache[_cacheKey] = entry;
   });
-  console.log(`    [cache] sources 保存: .cache/db.json workflowCache.${_cacheKey}`);
+  console.info("cache.save.sources", {
+    scope: "workflowCache",
+    key: _cacheKey,
+    count: data.length,
+  });
 }
 
 export async function loadSources(): Promise<SourceLink[]> {
@@ -164,7 +171,10 @@ export async function saveStyle(data: StyleAnalysis): Promise<void> {
   await updateDb((db) => {
     db.styleCache[_styleKey] = data;
   });
-  console.log(`    [cache] スタイル保存: .cache/db.json styleCache.${_styleKey}`);
+  console.info("cache.save.style", {
+    scope: "styleCache",
+    key: _styleKey,
+  });
 }
 
 export async function loadStyle(): Promise<StyleAnalysis | null> {
@@ -178,7 +188,11 @@ export async function saveDrafts(data: Draft[]): Promise<void> {
     entry.drafts = data;
     db.workflowCache[_cacheKey] = entry;
   });
-  console.log(`    [cache] drafts 保存: .cache/db.json workflowCache.${_cacheKey}`);
+  console.info("cache.save.drafts", {
+    scope: "workflowCache",
+    key: _cacheKey,
+    count: data.length,
+  });
 }
 
 export async function loadDrafts(): Promise<Draft[]> {
@@ -203,7 +217,12 @@ export async function appendDraftHistory(bodies: string[]): Promise<void> {
     db.draftHistory[_historyKey] = merged;
     mergedCount = merged.length;
   });
-  console.log(`    [history] ${bodies.length} 件追加（累計 ${mergedCount} 件）`);
+  console.info("cache.appendDraftHistory", {
+    scope: "history",
+    key: _historyKey,
+    added: bodies.length,
+    total: mergedCount,
+  });
 }
 
 export async function dumpPosts(collected: CollectedData): Promise<void> {
@@ -273,5 +292,13 @@ export async function dumpPosts(collected: CollectedData): Promise<void> {
     entry.postsDump = dump;
     db.workflowCache[_cacheKey] = entry;
   });
-  console.log(`    [cache] 投稿ダンプ保存: .cache/db.json workflowCache.${_cacheKey}`);
+  console.info("cache.dump.posts", {
+    scope: "workflowCache",
+    key: _cacheKey,
+    summary: {
+      referenceAccountPostsTotal,
+      searchResultPostsTotal,
+      searchQueriesCount,
+    },
+  });
 }

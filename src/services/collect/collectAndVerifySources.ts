@@ -170,9 +170,11 @@ export async function collectAndVerifySources(input: ActiveInformationCollectWor
     );
     if (runnableMethods.length === 0) break;
 
-    console.log(
-      `    [collect loop ${iteration + 1}/${globalMaxIterations}] methods: ${runnableMethods.join(", ")}`
-    );
+    console.info("collect loop", {
+      iteration: iteration + 1,
+      maxIterations: globalMaxIterations,
+      methods: runnableMethods,
+    });
 
     const tasks = runnableMethods.map(async (method): Promise<AccountCollectResult | WebCollectResult> => {
       if (isAccountMethod(method)) {
@@ -184,9 +186,11 @@ export async function collectAndVerifySources(input: ActiveInformationCollectWor
           bird: input.auth.bird,
           xapi: input.auth.xapi,
         });
-        console.log(
-          `    ${method}: 参照アカウント投稿を取得中 (${iteration + 1}/${config.max_iterations})`
-        );
+        console.info("collect account method", {
+          method,
+          iteration: iteration + 1,
+          maxIterations: config.max_iterations,
+        });
         const accountPosts = await repository.fetchAccountPosts(config.target_accounts, iteration);
         const searchQueries = iteration === 0 ? [] : (nextSearchQueries ?? []);
         const searchResults =
@@ -202,9 +206,11 @@ export async function collectAndVerifySources(input: ActiveInformationCollectWor
         return { kind: "web", method, searchResults: [] as XSearchResult[] };
       }
 
-      console.log(
-        `    ${method}: Web検索を実行 (${iteration + 1}/${getMethodMaxIterations(input, method)})`
-      );
+      console.info("collect web method", {
+        method,
+        iteration: iteration + 1,
+        maxIterations: getMethodMaxIterations(input, method),
+      });
       const searchResults = await repository.searchPosts(queries, iteration);
       return { kind: "web", method, searchResults };
     });
@@ -233,9 +239,15 @@ export async function collectAndVerifySources(input: ActiveInformationCollectWor
       0
     );
 
-    console.log("    収集結果の十分性を判定中...");
+    console.info("collect sufficiency check start", {
+      iteration: iteration + 1,
+    });
     const decision = await decide(instruction, collected, remainingIterations, input.auth.anthropic);
-    console.log(`    判断: ${decision.sufficient ? "十分" : "不十分"} — ${decision.reason ?? ""}`);
+    console.info("collect sufficiency decision", {
+      iteration: iteration + 1,
+      sufficient: decision.sufficient,
+      reason: decision.reason,
+    });
 
     if (decision.sufficient || remainingIterations === 0) {
       break;
@@ -243,11 +255,14 @@ export async function collectAndVerifySources(input: ActiveInformationCollectWor
 
     nextSearchQueries = decision.searchQueries?.filter((query) => query.trim().length > 0);
     if (!nextSearchQueries || nextSearchQueries.length === 0) {
-      console.warn("    次ループ用の検索クエリが返されませんでした。ここで終了します。");
+      console.warn("collect stopping", {
+        reason: "no_next_search_queries",
+        iteration: iteration + 1,
+      });
       break;
     }
 
-    console.log(`    次ループ検索クエリ: ${nextSearchQueries.join(" / ")}`);
+    console.info("collect next_search_queries", { iteration: iteration + 1, queries: nextSearchQueries });
     await sleep(SLEEP_BETWEEN_ITERATIONS_BASE, SLEEP_BETWEEN_ITERATIONS_JITTER);
   }
 

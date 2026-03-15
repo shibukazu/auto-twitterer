@@ -1,136 +1,126 @@
 # auto-twitterer
 
-**auto-twitterer** is a Temporal-based workflow that automatically
-generates and posts content to **X (Twitter)**.
+`auto-twitterer` は、Temporal 上で実行される **X (Twitter)** 投稿ワークフローです。  
+入力となるワークフロー入力に基づいて、情報収集→スタイル推定→下書き生成→（必要なら）投稿までを実行します。
 
-It can:
+- 情報収集を複数ソースから実施可能
+- LLM で投稿本文を生成
+- 文章トーンを `styleEstimation` で制御
+- 投稿時刻にジッターを付与して自然なタイミングを再現
+- `dry_run` で投稿なし検証が可能
+- Temporal UI から起動する運用を前提
 
--   Collect information from multiple sources
--   Generate a post using an LLM
--   Apply style constraints
--   Optionally publish the result to X
+---
 
-The workflow is designed to run continuously via a Temporal worker and
-can be triggered from the **Temporal UI**.
+## 特徴
 
-------------------------------------------------------------------------
+- Temporal ワークフロー + ワーカー構成
+- LLM を使った情報収集の十分性判定と再検索ループ
+- 情報収集ソース（アクティブ）
+  - X API
+  - Bird API
+  - Firecrawl
+  - DuckDuckGo
+- RSS を受けるパッシブ系フロー（シグナルベース）
+- スタイル推定は `styleEstimation.examples` と `styleEstimation.instruction` に基づく
+- 投稿時間の揺らぎ（ジッター）
+- macOS での `launchctl`（LaunchAgent）デプロイ対応
+- ワークフロー実行結果は `cache` に蓄積
 
-# Features
+---
 
--   **Temporal Workflow based architecture**
--   **LLM-powered content generation**
--   **Multi-source information collection**
-    -   X API
-    -   Bird API
-    -   Firecrawl
-    -   DuckDuckGo
--   **Passive RSS ingestion via Temporal Signal**
--   **Style analysis from examples**
--   **Posting jitter to randomize publish timing**
--   **Dry-run mode for testing**
--   **LaunchAgent support for macOS worker deployment**
+## インストール
 
-------------------------------------------------------------------------
-
-# Installation
-
-``` bash
+```bash
 bun install
 ```
 
-------------------------------------------------------------------------
+---
 
-# Running the Worker
+## ワーカー起動
 
-Start a Temporal worker:
+### 開発
 
-``` bash
-bun run worker
-```
-
-For development with hot reload:
-
-``` bash
+```bash
 TEMPORAL_NAMESPACE=auto-twitterer \
 TEMPORAL_TASK_QUEUE=default \
 bun run worker:dev
 ```
 
-------------------------------------------------------------------------
+### 本番系デプロイ（LaunchAgent）
 
-# Temporal Namespace Management
-
-List namespaces:
-
-``` bash
-bun run temporal:namespace:list
-```
-
-Create a namespace:
-
-``` bash
-TEMPORAL_NAMESPACE=auto-twitterer bun run temporal:namespace:create
-```
-
-------------------------------------------------------------------------
-
-# LaunchAgent Deployment (macOS)
-
-Deploy the worker as a LaunchAgent:
-
-``` bash
+```bash
 TEMPORAL_NAMESPACE=auto-twitterer \
 TEMPORAL_TASK_QUEUE=default \
 bun run worker:launchctl:deploy
 ```
 
-Stop the LaunchAgent worker:
+停止:
 
-``` bash
+```bash
 bun run worker:launchctl:bootout
 ```
 
-Notes:
+- `bun run worker:launchctl:deploy` はテンプレートを元に `~/Library/LaunchAgents/com.auto-twitterer.worker.plist` を生成・登録します。
+- `worker.ts` の変更を反映するには再デプロイが必要です。
 
--   The deploy command generates a LaunchAgent plist from a template
--   The worker is installed to:
+---
 
-```{=html}
-<!-- -->
+## Temporal 名前空間操作
+
+名前空間一覧:
+
+```bash
+bun run temporal:namespace:list
 ```
-    ~/Library/LaunchAgents/com.auto-twitterer.worker.plist
 
-Changes to `worker.ts` are **not automatically applied** to LaunchAgent
-workers.\
-Redeploy or restart the worker after updates.
+名前空間作成:
 
-------------------------------------------------------------------------
+```bash
+TEMPORAL_NAMESPACE=auto-twitterer bun run temporal:namespace:create
+```
 
-# Running Workflows
+---
 
-Workflows are started **from the Temporal UI**, not from the CLI.
+## Alloy ログ連携（任意）
 
-Main workflow entrypoints:
+以下コマンドは macOS で Alloy を使い `logs/` 配下のログを送信するためのものです。
 
--   `activeInformationCollectWorkflow`
--   `passiveInformationCollectWorkflow`
--   `generateAndPublishWorkflow`
+```bash
+brew install grafana/alloy/alloy
+./bin/deploy-alloy.sh
+```
 
-Actual posting only occurs when:
+- `./bin/deploy-alloy.sh` は `logs/` のローテーションも含めて登録します。
+- 送信先 URL は `deploy/auto-twitterer.alloy.template` の `__LOKI_URL__` を置換して指定します。
 
-    dry_run = false
+---
 
-------------------------------------------------------------------------
+## ワークフロー実行
 
-# Workflow Input
+このリポジトリは CLI 実行ではなく **Temporal UI** からの開始を前提としています。
 
-Active workflow input example (`activeInformationCollectWorkflow` / `autoTweeterWorkflow`):
+提供ワークフロー:
 
-``` json
+- `activeInformationCollectWorkflow`
+- `passiveInformationCollectWorkflow`
+- `generateAndPublishWorkflow`
+
+投稿は `dry_run = false` の場合のみ実行されます。
+
+---
+
+## ワークフロー入力（主要）
+
+### アクティブ収集ワークフロー例
+
+`activeInformationCollectWorkflow` 向け:
+
+```json
 {
   "dry_run": true,
   "collecting": {
-    "instruction": "Judge whether collected information is sufficient for generating a post, and propose next search keywords when it is not sufficient.",
+    "instruction": "収集した情報が投稿生成に十分かを判定し、足りない場合は次の検索キーワードを提案する文脈を示す指示。",
     "active": {
       "methods": ["xapi", "firecrawl", "bird"],
       "xapi": {
@@ -147,23 +137,23 @@ Active workflow input example (`activeInformationCollectWorkflow` / `autoTweeter
         "max_iterations": 2
       },
       "duckduckgo": {
-        "keywords": ["AI development trends", "engineering operations"],
+        "keywords": ["AI 開発動向", "エンジニアリング運用"],
         "urls": ["https://www.google.com"],
         "max_iterations": 2
       }
     }
   },
   "generation": {
-    "instruction": "Create one concise, practical post with directly applicable insights for engineering teams.",
+    "instruction": "エンジニア向けに実践的で短い投稿を1件生成する。",
     "generate_hashtags": false,
     "append_thread_notice": false,
     "reply_source_url": false
   },
   "styleEstimation": {
-    "instruction": "Use a concise, calm tone that avoids being overly assertive. Focus on operational learnings.",
+    "instruction": "断定しすぎず、実務に落とし込める実践的なトーン。宣伝臭を抑える。",
     "examples": [
-      "Define incident response patterns before running large AI automations.",
-      "Keep decisions lightweight: establish a rollback rule before scaling."
+      "大規模な自動化を回す前に、インシデント時の巻き戻し手順を先に決める。",
+      "意思決定は軽量に。スケール前にロールバック規則を定義しておく。"
     ]
   },
   "posting": {
@@ -197,13 +187,15 @@ Active workflow input example (`activeInformationCollectWorkflow` / `autoTweeter
 }
 ```
 
-Passive workflow input example (`passiveInformationCollectWorkflow`):
+### パッシブ収集ワークフロー例
 
-``` json
+`passiveInformationCollectWorkflow` 向け:
+
+```json
 {
   "dry_run": true,
   "collecting": {
-    "instruction": "Judge whether incoming RSS payloads can be turned into reliable publishing candidates.",
+    "instruction": "受け取った RSS ペイロードが投稿候補として扱えるかを判定するための指示。",
     "passive": {
       "source_type": "rss",
       "transformer": "example-transformer.ts",
@@ -211,16 +203,16 @@ Passive workflow input example (`passiveInformationCollectWorkflow`):
     }
   },
   "generation": {
-    "instruction": "Summarize the incoming signal and create one natural-sounding post.",
+    "instruction": "受信シグナルを要約して、短く自然な投稿を1件生成する。",
     "generate_hashtags": false,
     "append_thread_notice": false,
     "reply_source_url": true
   },
   "styleEstimation": {
-    "instruction": "Keep the tone practical and concise, without sounding promotional.",
+    "instruction": "実践的で簡潔な口調。誇張や宣伝調を避ける。",
     "examples": [
-      "Operational quality improves when verification is designed before implementation.",
-      "Prefer resilient update flows over ad hoc releases to reduce incidents."
+      "実装前に検証方法を定義しておくと、品質が安定する。",
+      "即時対応より復元可能な設計の方が、事故時の復旧速度を上げる。"
     ]
   },
   "posting": {
@@ -234,218 +226,155 @@ Passive workflow input example (`passiveInformationCollectWorkflow`):
 }
 ```
 
-Note:
+補足:
 
-- Passive workflow execution uses the same cache schema (`.cache/db.json`) as active workflow.
-- `runtime.processed_item_ids` and `runtime.pending_signals` are used internally for
-  duplicate suppression and restart control in `passiveInformationCollectWorkflow`.
+- `passive` ではワークフロー起動時に `transformer` が必須。
+- `runtime.processed_item_ids` は重複抑止に使用。
+- `runtime.pending_signals` は継続実行（continue-as-new）を跨いだ未処理シグナル保持に使用。
 
-------------------------------------------------------------------------
+---
 
-# Architecture
+## アーキテクチャ
 
-## Workflow Structure
+### ワークフロー構成
 
--   `activeInformationCollectWorkflow`
-    -   Current pull-based collection flow
-    -   Collects information from X API / Bird / Firecrawl / DuckDuckGo
-    -   Starts `generateAndPublishWorkflow` as a child workflow
--   `passiveInformationCollectWorkflow`
-    -   Long-lived signal-based workflow
-    -   Receives passive information such as RSS items
-    -   Applies a workflow-specific transformer
-    -   Starts `generateAndPublishWorkflow` as a child workflow
--   `generateAndPublishWorkflow`
-    -   Shared downstream workflow
-    -   Runs style analysis, draft generation, and optional posting
+- `activeInformationCollectWorkflow`
+  - 通常の情報収集ワークフロー
+  - X API / Bird / Firecrawl / DuckDuckGo を並列実行
+  - `generateAndPublishWorkflow` を子ワークフローとして起動
+- `passiveInformationCollectWorkflow`
+  - シグナルを受ける長寿命ワークフロー
+  - `collecting.passive.transformer` でデータ変換
+  - `generateAndPublishWorkflow` を子ワークフローとして起動
+- `generateAndPublishWorkflow`
+  - 生成・検証・投稿までを担当する共通ワークフロー
 
-------------------------------------------------------------------------
+### 収集ステップ
 
-## Collect Stage
+1. 有効な収集方法を並列実行
+2. 取得結果をマージ
+3. LLM で十分性判定
+4. 不十分なら追加検索キーワードを生成してループ
+5. `collecting.active.methods` が空の場合は収集をスキップ
 
-Information is collected from configured methods:
+### RSS 検証フロー
 
--   `xapi`
--   `bird`
--   `firecrawl`
--   `duckduckgo`
+1. `passiveInformationCollectWorkflow` を起動
+2. `collecting.passive.source_type` を `"rss"` に設定
+3. `transformers/` 配下の変換ファイルを `collecting.passive.transformer` に指定
+4. 実行中に `ingestPassiveInformation` シグナルで RSS ペイロードを送信
+5. 変換ジョブごとに `generateAndPublishWorkflow` を起動
 
-Each iteration:
+---
 
-1.  Run all collectors in parallel
-2.  Aggregate results
-3.  Ask the LLM whether information is sufficient
-4.  If insufficient, generate new queries and repeat
+## スタイル推定
 
-If `collecting.active.methods = []`, collection is skipped.
+次の2つを元に推定します:
 
-------------------------------------------------------------------------
+- `styleEstimation.instruction`
+- `styleEstimation.examples`
 
-## Passive Collection
+推定結果はキャッシュされ、同一ハッシュでは再計算を抑制します。
 
--   `passiveInformationCollectWorkflow` receives passive payloads via the `ingestPassiveInformation` signal
--   Current supported source type is `rss`
--   The workflow itself does not fetch RSS feeds
--   An external bridge is expected to poll RSS and signal normalized items into Temporal
+---
 
-Signal payloads are transformed by a workflow-specific transformer file under:
+## 投稿生成
 
-    transformers/
+- 1ワークフロー実行につき1投稿をデフォルトで生成
+- 過去投稿履歴は `.cache/db.json` から取得
+- 直近5件のみプロンプトへ含める
+- 文字数超過時は再生成を実施
 
-Transformer files are intentionally gitignored. A tracked example is available at:
+生成された下書きはローカルへ保存:
 
-    transformers/rss.example.ts
+- `.cache/drafts/*.json`
 
-Example signal payload:
+---
 
-``` json
-{
-  "source_type": "rss",
-  "source_id": "producthunt-featured",
-  "feed_url": "https://www.producthunt.com/feed/featured",
-  "items": [
-    {
-      "guid": "item-guid",
-      "title": "Example title",
-      "link": "https://www.producthunt.com/posts/example",
-      "summary": "Example summary",
-      "published_at": "2026-03-15T00:00:00Z",
-      "categories": ["AI", "Developer Tools"],
-      "rank": 1
-    }
-  ]
-}
-```
+## 投稿
 
-Each transformer deterministically converts incoming passive payloads into one or more publish jobs.
-That lets each workflow decide things like:
+`dry_run = false` の場合:
 
--   which RSS item to keep
--   whether only the top item should be posted
--   how summary text should be extracted
--   which URLs should be treated as sources
+1. 投稿時刻を決定
+2. `posting.jitter_minutes` の範囲で揺らぎを加算
+3. 到来まで待機（必要時）
+4. 本文投稿
+5. `reply_source_url` が有効なら関連リプライを実行
 
-The worker loads the transformer dynamically from `workflowInput.collecting.passive.transformer`.
+---
 
-------------------------------------------------------------------------
+## キャッシュ
 
-## Style Analysis
+保存先:
 
-Style is derived from:
+- 実行時キャッシュ: `.cache/db.json`
+- 下書きキャッシュ: `.cache/drafts/*.json`
 
-    styleEstimation.instruction
-    styleEstimation.examples
+キー構成:
 
-The analysis result is cached and reused.
+- ワークフローキー: 実行入力の正規化文字列のハッシュ
+- 履歴キー: `generation.instruction` のハッシュ
+- スタイルキー: `styleEstimation.instruction + examples` のハッシュ
 
-------------------------------------------------------------------------
+---
 
-## Post Generation
+## 環境変数
 
-Rules:
+以下は主に起動時に使用されます。
 
--   One post per workflow execution
--   Previous posts are loaded from history
--   Only the **latest 5 posts** are included in the prompt
--   The LLM generates a draft until it fits the character limit
+- `TEMPORAL_ADDRESS`（デフォルト: `localhost:7233`）
+- `TEMPORAL_NAMESPACE`（デフォルト: `auto-twitterer`）
+- `TEMPORAL_TASK_QUEUE`（デフォルト: `default`）
 
-Drafts are stored locally:
+これらは LaunchAgent 作成時にも反映されます。
 
-    .cache/drafts/
+---
 
-------------------------------------------------------------------------
+## システムフロー
 
-## Posting
-
-If `dry_run = false`:
-
-1.  Determine posting time
-2.  Apply `jitter_minutes`
-3.  Wait if necessary
-4.  Publish to X
-5.  Optionally publish a reply
-
-------------------------------------------------------------------------
-
-# Cache System
-
-Cache files are stored locally.
-
-  Cache           Location
-  --------------- ------------------------
-  Runtime cache   `.cache/db.json`
-  Draft cache     `.cache/drafts/*.json`
-
-Cache keys:
-
--   workflow cache key → hash of the full normalized workflow input passed to the run
--   history key → hash of `generation.instruction`
--   style key → hash of `styleEstimation.instruction + examples`
-
-------------------------------------------------------------------------
-
-# Environment Variables
-
-    TEMPORAL_ADDRESS=localhost:7233
-    TEMPORAL_NAMESPACE=auto-twitterer
-    TEMPORAL_TASK_QUEUE=default
-
-  Variable                Description
-  ----------------------- -------------------------
-  `TEMPORAL_ADDRESS`      Temporal server address
-  `TEMPORAL_NAMESPACE`    Temporal namespace
-  `TEMPORAL_TASK_QUEUE`   Worker task queue
-
-These values are embedded into the LaunchAgent configuration during
-deployment.
-
-------------------------------------------------------------------------
-
-# System Flow
-
-``` mermaid
+```mermaid
 flowchart TD
-  A[Start] --> B[WorkflowInput from Temporal UI]
-  B --> C[Compute cache keys]
+  A[開始] --> B[Temporal UI からワークフロー入力を受信]
+  B --> C[キャッシュキーを計算]
 
-  C --> D[Collect Information]
+  C --> D[収集判定へ進む]
 
-  D --> E{methods empty?}
-  E -->|yes| F[Skip collection]
-  E -->|no| G[Run collectors in parallel]
+  D --> E{収集方法が空?}
+  E -->|はい| F[収集をスキップ]
+  E -->|いいえ| G[収集メソッドを並列実行]
 
-  G --> H[Aggregate results]
-  H --> I[LLM evaluates sufficiency]
+  G --> H[結果を集約]
+  H --> I[LLMで十分性判定]
 
-  I --> J{Enough data?}
-  J -->|no| K[Generate next search queries]
+  I --> J{十分か?}
+  J -->|いいえ| K[次回検索クエリをLLM決定]
   K --> G
-  J -->|yes| L[Extract candidate sources]
+  J -->|はい| L[候補ソース抽出]
 
-  L --> M[Validate sources]
-  M --> N{Verified sources?}
-  N -->|no| O[Fallback search]
-  O --> P[Save results]
+  L --> M[ソース検証]
+  M --> N{検証ソースあり?}
+  N -->|no| O[フォールバック検索]
+  O --> P[結果保存]
   N -->|yes| P
 
-  P --> Q[Analyze writing style]
-  Q --> R[Generate draft]
-  R --> S{Within character limit?}
-  S -->|no| R
-  S -->|yes| T[Save draft]
+  P --> Q[スタイル推定]
+  Q --> R[下書き生成]
+  R --> S{文字数適合?}
+  S -->|いいえ| R
+  S -->|はい| T[下書き保存]
 
-  T --> U{dry_run?}
-  U -->|yes| Z[Finish]
-  U -->|no| V[Resolve jitter]
-  V --> W[Post to X]
-  W --> X{replyBody exists?}
-  X -->|yes| Y[Post reply]
-  X -->|no| Z
+  T --> U{dry_runか?}
+  U -->|はい| Z[終了]
+  U -->|いいえ| V[ジッター解決]
+  V --> W[Xへ投稿]
+  W --> X{リプライ本文が必要か?}
+  X -->|はい| Y[リプライ投稿]
+  X -->|いいえ| Z
   Y --> Z
 ```
 
-------------------------------------------------------------------------
+---
 
-# License
+## ライセンス
 
-MIT License
+MIT ライセンス

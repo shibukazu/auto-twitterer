@@ -19,6 +19,7 @@ logs
 # caches
 .eslintcache
 .cache
+.alloy
 *.tsbuildinfo
 
 # IntelliJ based IDEs

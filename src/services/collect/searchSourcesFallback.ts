@@ -44,21 +44,21 @@ export async function searchSourcesFallback(
   >;
   if (availableMethods.length === 0) return seedSources;
 
-  console.log("    [fallback] LLM が検索キーワードを決定中...");
+  console.info("fallback keyword generation start");
   const autoKeywords = await decideKeywords(instruction, collected, auth);
   const seedKeywords = Object.values(collected.seedKeywordsByMethod).flatMap((keywords) => keywords ?? []);
   const keywords = [...seedKeywords, ...autoKeywords];
 
   if (keywords.length === 0) {
-    console.warn("    [fallback] キーワードが取得できませんでした");
+    console.warn("fallback no keywords");
     return seedSources;
   }
 
-  console.log(`    [fallback] 検索キーワード: ${keywords.join(" / ")}`);
+  console.info("fallback search keywords", { count: keywords.length });
   const sourceGroups = await Promise.all(
     availableMethods.map(async ([method, repository]) => {
       const sources = await repository.searchLinks(keywords);
-      console.log(`    [fallback:${method}] ${sources.length} 件のソースを取得`);
+      console.info("fallback search links result", { method, count: sources.length });
       return sources;
     })
   );

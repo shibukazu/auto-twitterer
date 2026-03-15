@@ -142,14 +142,18 @@ export async function generateDrafts(
     if (violations.length === 0) break;
 
     if (attempt < MAX_GENERATION_RETRIES) {
-      console.warn(
-        `    [generateDrafts] 文字数超過 (attempt ${attempt}/${MAX_GENERATION_RETRIES}): ${violations.join(", ")}`
-      );
+      console.warn("generateDrafts char limit violations", {
+        attempt,
+        maxAttempts: MAX_GENERATION_RETRIES,
+        violations,
+      });
       violationFeedback = violations.join("\n");
     } else {
-      console.warn(
-        `    [generateDrafts] 文字数超過のまま最終出力します: ${violations.join(", ")}`
-      );
+      console.warn("generateDrafts final output with violations", {
+        attempt,
+        maxAttempts: MAX_GENERATION_RETRIES,
+        violations,
+      });
     }
   }
 

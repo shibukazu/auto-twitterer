@@ -1,0 +1,34 @@
+loki.write "to_loki" {
+  endpoint {
+    url = "__LOKI_URL__"
+  }
+
+  external_labels = {
+    app = "auto-twitterer",
+    service = "auto-twitterer",
+    host = "__HOSTNAME__",
+    source = "alloy",
+  }
+}
+
+local.file_match "auto_twitterer_logs" {
+  path_targets = [
+    {
+      __path__ = "__PROJECT_ROOT__/logs/worker.log",
+      app = "auto-twitterer",
+      service = "auto-twitterer",
+      stream = "stdout",
+    },
+    {
+      __path__ = "__PROJECT_ROOT__/logs/worker.error.log",
+      app = "auto-twitterer",
+      service = "auto-twitterer",
+      stream = "stderr",
+    },
+  ]
+}
+
+loki.source.file "from_auto_twitterer_logs" {
+  targets    = local.file_match.auto_twitterer_logs.targets
+  forward_to = [loki.write.to_loki.receiver]
+}
