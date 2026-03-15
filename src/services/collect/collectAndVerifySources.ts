@@ -1,4 +1,4 @@
-import { getCollectMethods, getInstruction } from "../../config";
+import { getCollectMethods, getCollectionInstruction } from "../../config";
 import { buildCollectDecidePrompt } from "../../prompts/collectDecidePrompt";
 import {
   createCollectRepository,
@@ -12,8 +12,8 @@ import type {
   CollectedData,
   CollectDecision,
   SourceLink,
+  ActiveInformationCollectWorkflowInput,
   WebCollectMethod,
-  WorkflowInput,
   XSearchResult,
 } from "../../types";
 import { createAnthropicClient } from "../../utils/anthropic";
@@ -82,21 +82,24 @@ function mergeAccountPosts(existing: AccountPosts[] = [], incoming: AccountPosts
   return Array.from(byAccount.values());
 }
 
-function getWebSeedQueries(input: WorkflowInput, method: WebCollectMethod): string[] {
-  const config = input.content.collect[method];
+function getWebSeedQueries(input: ActiveInformationCollectWorkflowInput, method: WebCollectMethod): string[] {
+  const config = input.collecting.active?.[method];
   if (!config) return [];
   if (config.keywords === "auto") {
-    return [input.content.instruction];
+    return [getCollectionInstruction(input)];
   }
   return config.keywords;
 }
 
-function getWebSeedUrls(input: WorkflowInput, method: WebCollectMethod): string[] {
-  return input.content.collect[method]?.urls ?? [];
+function getWebSeedUrls(input: ActiveInformationCollectWorkflowInput, method: WebCollectMethod): string[] {
+  return input.collecting.active?.[method]?.urls ?? [];
 }
 
-function getMethodMaxIterations(input: WorkflowInput, method: ActiveCollectMethod): number {
-  return input.content.collect[method]?.max_iterations ?? 0;
+function getMethodMaxIterations(
+  input: ActiveInformationCollectWorkflowInput,
+  method: ActiveCollectMethod
+): number {
+  return input.collecting.active?.[method]?.max_iterations ?? 0;
 }
 
 async function decide(
@@ -129,14 +132,12 @@ async function decide(
   return JSON.parse(jsonMatch[0]) as CollectDecision;
 }
 
-export async function collectAndVerifySources(input: WorkflowInput): Promise<{
+export async function collectAndVerifySources(input: ActiveInformationCollectWorkflowInput): Promise<{
   collected: CollectedData;
   sources: SourceLink[];
 }> {
-  const instruction = getInstruction(input);
-  const activeMethods = getCollectMethods(input).filter(
-    (method): method is ActiveCollectMethod => method !== "none"
-  );
+  const instruction = getCollectionInstruction(input);
+  const activeMethods = getCollectMethods(input) as ActiveCollectMethod[];
   const collected = createEmptyCollected(activeMethods);
 
   if (activeMethods.length === 0) {
@@ -149,8 +150,8 @@ export async function collectAndVerifySources(input: WorkflowInput): Promise<{
     webRepositories[method] = createWebCollectRepository(method, input.auth.firecrawl);
     if (!webRepositories[method]) {
       throw new Error(
-        `${method} を collect.methods に指定したため Firecrawl の認証情報が必要です。\n` +
-          "WorkflowInput.auth.firecrawl.apiKey を設定してください。"
+      `${method} を collecting.active.methods に指定したため Firecrawl の認証情報が必要です。\n` +
+        "WorkflowInput.auth.firecrawl.apiKey を設定してください。"
       );
     }
     collected.seedKeywordsByMethod[method] = getWebSeedQueries(input, method);
@@ -175,7 +176,10 @@ export async function collectAndVerifySources(input: WorkflowInput): Promise<{
 
     const tasks = runnableMethods.map(async (method): Promise<AccountCollectResult | WebCollectResult> => {
       if (isAccountMethod(method)) {
-        const config = input.content.collect[method]!;
+        const config = input.collecting.active?.[method];
+        if (!config) {
+          throw new Error(`workflowInput.collecting.active.${method} を設定してください。`);
+        }
         const repository = createCollectRepository(method, {
           bird: input.auth.bird,
           xapi: input.auth.xapi,

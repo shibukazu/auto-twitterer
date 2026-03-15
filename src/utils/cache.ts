@@ -1,5 +1,12 @@
 import { resolve } from "path";
-import type { CollectedData, Draft, SourceLink, StyleAnalysis, WorkflowInput } from "../types";
+import type {
+  ActiveInformationCollectWorkflowInput,
+  CollectedData,
+  Draft,
+  GenerateAndPublishWorkflowInput,
+  SourceLink,
+  StyleAnalysis,
+} from "../types";
 
 let _cacheKey = "default";
 let _historyKey = "default";
@@ -37,12 +44,14 @@ export function computeCacheKey(input: unknown): string {
   return Bun.hash(stableStringify(input)).toString(16);
 }
 
-export function computeHistoryKey(input: WorkflowInput): string {
-  return computeCacheKey(input.content.instruction);
+export function computeHistoryKey(
+  input: ActiveInformationCollectWorkflowInput | GenerateAndPublishWorkflowInput
+): string {
+  return computeCacheKey(input.generation.instruction);
 }
 
 export function computeStyleKey(
-  instructionOrInput: WorkflowInput | string,
+  instructionOrInput: ActiveInformationCollectWorkflowInput | GenerateAndPublishWorkflowInput | string,
   examples?: string[]
 ): string {
   if (typeof instructionOrInput === "string") {
@@ -53,8 +62,8 @@ export function computeStyleKey(
   }
 
   return computeStyleKey(
-    instructionOrInput.style.instruction,
-    instructionOrInput.style.examples ?? []
+    instructionOrInput.styleEstimation.instruction,
+    instructionOrInput.styleEstimation.examples ?? []
   );
 }
 

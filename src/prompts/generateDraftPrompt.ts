@@ -1,4 +1,9 @@
-import type { CollectedData, StyleAnalysis, SourceLink, WorkflowInput } from "../types";
+import type {
+  CollectedData,
+  GenerateAndPublishWorkflowInput,
+  SourceLink,
+  StyleAnalysis,
+} from "../types";
 import { getBodyLimit } from "../utils/twitterChars";
 
 const MAX_PAST_DRAFTS_IN_PROMPT = 5;
@@ -8,7 +13,7 @@ export function buildGenerateDraftPrompt(
   collected: CollectedData,
   style: StyleAnalysis,
   verifiedSources: SourceLink[],
-  generation: NonNullable<WorkflowInput["content"]["generation"]>,
+  generation: NonNullable<GenerateAndPublishWorkflowInput["generation"]>,
   count: number,
   pastDrafts: string[] = []
 ): string {

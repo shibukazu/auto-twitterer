@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { collectAndVerifySources } from "../services/collect/collectAndVerifySources";
 import { analyzeStyle } from "../services/content/analyzeStyle";
 import { generateDrafts } from "../services/content/generateDrafts";
+import { transformPassiveSignal } from "../services/passive/transformPassiveSignal";
 import { postDraft } from "../services/post/postDraft";
 import { notifySlack } from "../utils/slack";
 import {
@@ -24,10 +25,20 @@ import {
   setHistoryKey,
   setStyleKey,
 } from "../utils/cache";
-import { getInstruction } from "../config";
-import type { CollectedData, Draft, SourceLink, StyleAnalysis, WorkflowInput } from "../types";
+import { getGenerationInstruction } from "../config";
+import type {
+  CollectedData,
+  Draft,
+  ActiveInformationCollectWorkflowInput,
+  GenerateAndPublishWorkflowInput,
+  PassiveInformationCollectWorkflowInput,
+  PassiveInformationSignalPayload,
+  PassivePublishJob,
+  SourceLink,
+  StyleAnalysis,
+} from "../types";
 
-function applyCacheKey(input: WorkflowInput): string {
+function applyCacheKey(input: ActiveInformationCollectWorkflowInput): string {
   const key = computeCacheKey(input);
   setCacheKey(key);
   setHistoryKey(computeHistoryKey(input));
@@ -40,7 +51,7 @@ export async function notifyWorkflowFailure(input: {
   runId: string;
   activityType?: string;
   errorMessage: string;
-  slackAuth?: WorkflowInput["auth"]["slack"];
+  slackAuth?: ActiveInformationCollectWorkflowInput["auth"]["slack"];
 }): Promise<void> {
   const activityLabel = input.activityType ? ` (${input.activityType})` : "";
   await notifySlack(
@@ -50,7 +61,9 @@ export async function notifyWorkflowFailure(input: {
   );
 }
 
-export async function stepCollectSources(input: { input: WorkflowInput }): Promise<{
+export async function stepCollectSources(input: {
+  input: ActiveInformationCollectWorkflowInput;
+}): Promise<{
   collected: CollectedData;
   sources: import("../types").SourceLink[];
 }> {
@@ -64,7 +77,7 @@ export async function stepCollectSources(input: { input: WorkflowInput }): Promi
   return result;
 }
 
-export async function stepStyle(input: { input: WorkflowInput }): Promise<StyleAnalysis> {
+export async function stepStyle(input: { input: GenerateAndPublishWorkflowInput }): Promise<StyleAnalysis> {
   applyCacheKey(input.input);
 
   const cached = await loadStyle();
@@ -72,8 +85,8 @@ export async function stepStyle(input: { input: WorkflowInput }): Promise<StyleA
 
   Context.current().heartbeat("スタイル分析中...");
   const style = await analyzeStyle(
-    input.input.style.instruction,
-    input.input.style.examples ?? [],
+    input.input.styleEstimation.instruction,
+    input.input.styleEstimation.examples ?? [],
     input.input.auth.anthropic
   );
   await saveStyle(style);
@@ -81,13 +94,13 @@ export async function stepStyle(input: { input: WorkflowInput }): Promise<StyleA
 }
 
 export async function stepGenerate(input: {
-  input: WorkflowInput;
+  input: GenerateAndPublishWorkflowInput;
   collected: CollectedData;
   sources: SourceLink[];
   style: StyleAnalysis;
 }): Promise<Draft[]> {
   const cacheKey = applyCacheKey(input.input);
-  const instruction = getInstruction(input.input);
+  const instruction = getGenerationInstruction(input.input);
 
   Context.current().heartbeat("投稿文生成中...");
   const pastDrafts = await loadDraftHistory();
@@ -96,7 +109,7 @@ export async function stepGenerate(input: {
     input.collected,
     input.style,
     input.sources,
-    input.input.content.generation ?? {},
+    input.input.generation,
     1,
     pastDrafts,
     input.input.auth.anthropic
@@ -112,7 +125,9 @@ export async function stepGenerate(input: {
   return drafts;
 }
 
-export async function stepLoadCollected(input: { input: WorkflowInput }): Promise<{
+export async function stepLoadCollected(input: {
+  input: ActiveInformationCollectWorkflowInput;
+}): Promise<{
   collected: CollectedData;
   sources: SourceLink[];
 }> {
@@ -123,7 +138,7 @@ export async function stepLoadCollected(input: { input: WorkflowInput }): Promis
   };
 }
 
-export async function stepLoadStyle(input: { input: WorkflowInput }): Promise<StyleAnalysis> {
+export async function stepLoadStyle(input: { input: GenerateAndPublishWorkflowInput }): Promise<StyleAnalysis> {
   applyCacheKey(input.input);
   const style = await loadStyle();
   if (!style) {
@@ -132,13 +147,23 @@ export async function stepLoadStyle(input: { input: WorkflowInput }): Promise<St
   return style;
 }
 
-export async function stepLoadDrafts(input: { input: WorkflowInput }): Promise<Draft[]> {
+export async function stepLoadDrafts(input: {
+  input: GenerateAndPublishWorkflowInput;
+}): Promise<Draft[]> {
   applyCacheKey(input.input);
   return loadDrafts();
 }
 
+export async function stepTransformPassiveSignal(input: {
+  input: PassiveInformationCollectWorkflowInput;
+  payload: PassiveInformationSignalPayload;
+}): Promise<PassivePublishJob[]> {
+  Context.current().heartbeat("受動ソースを transformer で変換中...");
+  return transformPassiveSignal(input.input, input.payload);
+}
+
 export async function stepPost(input: {
-  input: WorkflowInput;
+  input: GenerateAndPublishWorkflowInput;
   draft: Draft;
   index: number;
   total: number;

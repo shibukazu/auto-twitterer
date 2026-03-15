@@ -1,9 +1,9 @@
-import type { WorkflowPostingInput } from "../types";
+import type { PostingConfig } from "../types";
 
 const MINUTE_MS = 60 * 1000;
 
 export function resolvePostDelayMs(
-  posting: WorkflowPostingInput
+  posting: PostingConfig
 ): number {
   const jitter = posting.jitter_minutes ?? 0;
   if (jitter <= 0) return 0;

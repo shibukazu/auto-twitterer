@@ -1,0 +1,4 @@
+*.ts
+!*.example.ts
+!.gitignore
+!README.md

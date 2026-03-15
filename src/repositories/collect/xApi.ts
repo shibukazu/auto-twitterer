@@ -14,30 +14,28 @@ let _client: TwitterApi | null = null;
 let _clientKey: string | null = null;
 
 function createClient(auth: XApiAuth): TwitterApi {
-  if (auth.apiKey && auth.apiSecret && auth.accessToken && auth.accessSecret) {
-    return new TwitterApi({
-      appKey: auth.apiKey,
-      appSecret: auth.apiSecret,
-      accessToken: auth.accessToken,
-      accessSecret: auth.accessSecret,
-    });
-  }
+  return new TwitterApi({
+    appKey: auth.apiKey,
+    appSecret: auth.apiSecret,
+    accessToken: auth.accessToken,
+    accessSecret: auth.accessSecret,
+  });
+}
+
+function createMissingAuthError(): never {
   throw new Error(
     "X API 用の認証情報が不足しています。\n" +
-      "WorkflowInput.auth.xapi に apiKey / apiSecret / accessToken / accessSecret を設定してください。"
+    "WorkflowInput.auth.xapi に apiKey / apiSecret / accessToken / accessSecret を設定してください。"
   );
 }
 
 function getClient(auth?: XApiAuth): TwitterApi {
-  const merged = auth ?? {};
-  const key = [
-    merged.apiKey ?? "",
-    merged.apiSecret ?? "",
-    merged.accessToken ?? "",
-    merged.accessSecret ?? "",
-  ].join(":");
+  if (!auth) {
+    return createMissingAuthError();
+  }
+  const key = `${auth.apiKey}:${auth.apiSecret}:${auth.accessToken}:${auth.accessSecret}`;
   if (_client && _clientKey === key) return _client;
-  _client = createClient(merged);
+  _client = createClient(auth);
   _clientKey = key;
   return _client;
 }

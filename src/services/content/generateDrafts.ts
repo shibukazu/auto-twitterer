@@ -1,7 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildGenerateDraftPrompt } from "../../prompts/generateDraftPrompt";
 import { createAnthropicClient } from "../../utils/anthropic";
-import type { AnthropicAuth, CollectedData, Draft, SourceLink, StyleAnalysis, WorkflowInput } from "../../types";
+import type {
+  AnthropicAuth,
+  CollectedData,
+  Draft,
+  GenerateAndPublishWorkflowInput,
+  SourceLink,
+  StyleAnalysis,
+} from "../../types";
 import { isWithinLimit, buildFinalBody } from "../../utils/twitterChars";
 import { withRetry } from "../../utils/retry";
 
@@ -93,7 +100,7 @@ export async function generateDrafts(
   collected: CollectedData,
   style: StyleAnalysis,
   verifiedSources: SourceLink[],
-  generation: NonNullable<WorkflowInput["content"]["generation"]>,
+  generation: NonNullable<GenerateAndPublishWorkflowInput["generation"]>,
   count: number,
   pastDrafts: string[] = [],
   auth?: AnthropicAuth

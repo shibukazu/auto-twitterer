@@ -21,10 +21,8 @@ const SLEEP_BETWEEN_QUERIES_JITTER = 2000;
 let _client: TwitterClient | null = null;
 
 function mergeAuth(auth?: BirdAuth): BirdAuth | undefined {
-  const authToken = auth?.authToken;
-  const ct0 = auth?.ct0;
-  if (!authToken && !ct0) return undefined;
-  return { authToken, ct0 };
+  if (!auth) return undefined;
+  return auth;
 }
 
 async function createClient(auth?: BirdAuth): Promise<TwitterClient> {
